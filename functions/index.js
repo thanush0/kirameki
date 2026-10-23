@@ -1,12 +1,16 @@
 'use strict';
-const { onRequest } = require('firebase-functions/v2/https');
-const { defineSecret, defineString } = require('firebase-functions/params');
+// Render-compatible shim for Firebase Functions parameter APIs.
+const onRequest = (_options, handler) => handler;
+const defineSecret = (name) => ({ value: () => process.env[name] || '' });
+const defineString = (name) => ({ value: () => process.env[name] || '' });
 const admin = require('firebase-admin');
 const QRCode = require('qrcode');
 const { encrypt, decrypt, hmac, randomCode } = require('./lib/crypto');
 const v = require('./lib/validate');
 
-admin.initializeApp();
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) : null;
+if (!serviceAccount) throw new Error('Missing FIREBASE_SERVICE_ACCOUNT_JSON environment variable');
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount), projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id });
 const db = admin.firestore();
 const { FieldValue, Timestamp } = admin.firestore;
 
@@ -22,7 +26,7 @@ class HttpError extends Error {
 const bad = (m) => new HttpError(400, m);
 const ms = (t) => (t && t.toMillis ? t.toMillis() : null);
 const base = () => BASE_URL.value().replace(/\/+$/, '');
-const selfHosts = () => [new URL(base()).hostname.toLowerCase()];
+const selfHosts = () => [new URL(base()).hostname.toLowerCase(), ...(process.env.FRONTEND_ORIGIN ? [new URL(process.env.FRONTEND_ORIGIN).hostname.toLowerCase()] : [])];
 
 function clientIp(req) {
   const xff = req.get('x-forwarded-for');
@@ -307,7 +311,7 @@ exports.gateway = onRequest(
       if (req.method !== 'POST') return notFound();
       if (!(req.get('content-type') || '').startsWith('application/json')) return notFound();
       const origin = req.get('origin');
-      if (origin && origin !== new URL(base()).origin) return res.status(403).json({ ok: false, e: 'Forbidden' });
+      if (origin && origin !== (process.env.FRONTEND_ORIGIN || new URL(base()).origin)) return res.status(403).json({ ok: false, e: 'Forbidden' });
       const body = req.body || {};
       if (JSON.stringify(body).length > 8192) throw new HttpError(413, 'Request too large');
       const spec = typeof body.a === 'string' && Object.prototype.hasOwnProperty.call(actions, body.a) ? actions[body.a] : null;

@@ -66,3 +66,8 @@ functions/index.js        gateway + redirect functions
 functions/lib/            crypto + validation
 public/                   index.html, style.css, app.js, config.js
 ```
+
+
+## Free hosting alternative
+
+If you do not want Firebase Blaze, see [`RENDER-FREE-DEPLOY.md`](RENDER-FREE-DEPLOY.md) for moving the backend to a Render free web service while keeping Firebase Hosting.

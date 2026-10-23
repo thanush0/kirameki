@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
-import { firebaseConfig } from './config.js';
+import { firebaseConfig, backendBaseUrl } from './config.js';
 
 const auth = getAuth(initializeApp(firebaseConfig));
 const $ = (id) => document.getElementById(id);
@@ -23,7 +23,7 @@ async function api(a, d = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth.currentUser) headers.Authorization = 'Bearer ' + (await auth.currentUser.getIdToken());
   let r;
-  try { r = await fetch('/g', { method: 'POST', headers, body: JSON.stringify({ a, d }), cache: 'no-store' }); }
+  try { r = await fetch(backendBaseUrl.replace(/\/+$/, '') + '/g', { method: 'POST', headers, body: JSON.stringify({ a, d }), cache: 'no-store' }); }
   catch { throw new Error('Network error'); }
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.ok) throw new Error(j.e || 'Request failed (' + r.status + ')');
