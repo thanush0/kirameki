@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>URL not found · Kirameki</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    main {
+      min-height: 80vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .error-card {
+      max-width: 560px;
+      padding: 36px;
+      border: 1px solid #ffffff22;
+      border-radius: 24px;
+      background: #ffffff08;
+    }
+    .error-icon { font-size: 52px; margin-bottom: 12px; }
+    .actions {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .actions a { text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="error-card">
+      <div class="error-icon" aria-hidden="true">🔎</div>
+      <h1>URL <em>not found</em></h1>
+      <p>This Kirameki link doesn't exist or is no longer available.
+         Check the address or return to Kirameki to explore its features.</p>
+      <div class="actions">
+        <a class="btn glow" href="/promote?reason=not-found">Explore Kirameki</a>
+        <a class="btn ghost" href="/">Back to home</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
