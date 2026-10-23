@@ -286,3 +286,100 @@ tr:hover td { background: rgba(255,255,255,.04); }
     max-width: 100%;
   }
 }
+
+
+
+/* Kirameki mobile layout fix v2 */
+@media (max-width: 600px) {
+  .top {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 16px 16px;
+  }
+
+  .top > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .top .brand {
+    align-self: flex-start;
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .top .tabs {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .top .tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    margin: 0;
+    padding: 9px 13px;
+  }
+
+  .top button,
+  .top .btn {
+    max-width: 100%;
+  }
+
+  .hero {
+    padding: 28px 18px 22px;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.65rem, 6.5vw, 2.1rem);
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .hero p {
+    max-width: 36rem;
+    margin-inline: auto;
+    line-height: 1.55;
+    text-align: center;
+  }
+
+  .qr-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #form-short,
+  #form-qr,
+  .card {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  #form-short input,
+  #form-qr input,
+  #form-qr textarea {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  #form-short .row,
+  #form-qr .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  #form-short button,
+  #form-qr button {
+    max-width: 100%;
+  }
+}
