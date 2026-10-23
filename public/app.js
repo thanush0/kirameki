@@ -135,8 +135,9 @@ if (googleToken) {
   history.replaceState(null, '', location.pathname + location.search);
 }
 
-loadSession().then(() => {
+loadSession().then(async () => {
   if (googleToken && me) toast('Signed in with Google');
+  await restoreDynamicQrSession();
 });
 
 /* ---------- shorten ---------- */
@@ -171,6 +172,25 @@ function getQrCode(out) {
     return path.split('/').filter(Boolean).pop() || '';
   } catch {
     return '';
+  }
+}
+
+
+const QR_SESSION_KEY = 'kirameki_last_dynamic_qr';
+
+function saveDynamicQrSession(data) {
+  try {
+    sessionStorage.setItem(QR_SESSION_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.warn('Could not save QR session:', err);
+  }
+}
+
+function readDynamicQrSession() {
+  try {
+    return JSON.parse(sessionStorage.getItem(QR_SESSION_KEY) || 'null');
+  } catch {
+    return null;
   }
 }
 
@@ -242,7 +262,17 @@ $('form-qr').addEventListener('submit', (e) => {
       $('qr-short').classList.add('hidden');
     }
     showQr(out.svg);
-    if (qrMode === 'dynamic') startDynamicQrRefresh(getQrCode(out));
+    if (qrMode === 'dynamic') {
+      const code = getQrCode(out);
+      saveDynamicQrSession({
+        code,
+        shortUrl: out.shortUrl,
+        text: $('qr-text').value,
+        label: $('qr-label').value || '',
+        savedAt: Date.now()
+      });
+      startDynamicQrRefresh(code);
+    }
     toast(qrMode === 'dynamic' ? 'Dynamic QR saved to your library ✦' : 'QR generated ✦');
   });
 });
@@ -258,6 +288,36 @@ function download(blob, name) {
 $('qr-fullscreen').addEventListener('click', () => {
   openQrFullscreen(qrSvg);
 });
+
+
+async function restoreDynamicQrSession() {
+  const saved = readDynamicQrSession();
+
+  if (!saved || !saved.code || !saved.shortUrl || !me) return;
+
+  try {
+    qrMode = 'dynamic';
+
+    document.querySelectorAll('#qr-mode .seg-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.mode === 'dynamic');
+    });
+
+    $('qr-label-wrap').classList.remove('hidden');
+    $('qr-text').value = saved.text || '';
+    $('qr-label').value = saved.label || '';
+
+    const link = $('qr-short');
+    link.href = saved.shortUrl;
+    link.textContent = saved.shortUrl;
+    link.classList.remove('hidden');
+
+    const result = await api('qr.render', { code: saved.code });
+    showQr(result.svg);
+    startDynamicQrRefresh(saved.code);
+  } catch (err) {
+    console.warn('Could not restore dynamic QR:', err.message);
+  }
+}
 
 /* ---------- modal ---------- */
 const modal = $('modal');
