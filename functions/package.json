@@ -1,0 +1,14 @@
+{
+  "name": "kirameki-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "test": "node test/crypto.test.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.1.0",
+    "qrcode": "^1.5.4"
+  }
+}
