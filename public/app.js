@@ -70,7 +70,77 @@ function paintAuth() {
   updateQrNote();
 }
 async function loadSession(){ if(!sessionToken){paintAuth();return;} try{me=await api('me');}catch{sessionToken='';localStorage.removeItem('kirameki_token');me=null;} paintAuth(); }
-$('btn-signin').addEventListener('click',()=>guard(async()=>{const isRegister=confirm('Choose OK to create a new account, or Cancel to sign in.');const email=prompt('Email address:');if(!email)return;const password=prompt(isRegister?'Create a password (at least 10 characters):':'Password:');if(!password)return;let name='';if(isRegister)name=prompt('Display name (optional):')||'';const r=await fetch(backend+'/auth/'+(isRegister?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password,name})});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.e||'Authentication failed');sessionToken=j.token;localStorage.setItem('kirameki_token',sessionToken);me=j.user;paintAuth();toast(isRegister?'Account created':'Signed in');}));
+const authModal = $('auth-modal');
+let authMode = 'login';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  $('auth-title').textContent = mode === 'register' ? 'Create your account' : 'Welcome back';
+  $('auth-submit').textContent = mode === 'register' ? 'Create account' : 'Sign in';
+  $('auth-switch').textContent = mode === 'register'
+    ? 'Already have an account? Sign in'
+    : 'New to Kirameki? Create account';
+  $('auth-name-wrap').classList.toggle('hidden', mode !== 'register');
+  $('auth-confirm-wrap').classList.toggle('hidden', mode !== 'register');
+  $('auth-confirm').required = mode === 'register';
+  $('auth-name').required = false;
+  $('auth-error').textContent = '';
+  $('auth-password').autocomplete = mode === 'register' ? 'new-password' : 'current-password';
+}
+
+function openAuth() {
+  setAuthMode('login');
+  authModal.classList.remove('hidden');
+  $('auth-email').focus();
+}
+
+function closeAuth() {
+  authModal.classList.add('hidden');
+  $('auth-form').reset();
+  $('auth-error').textContent = '';
+}
+
+$('btn-signin').addEventListener('click', openAuth);
+$('auth-close').addEventListener('click', closeAuth);
+$('auth-switch').addEventListener('click', () => {
+  setAuthMode(authMode === 'login' ? 'register' : 'login');
+});
+authModal.addEventListener('click', e => {
+  if (e.target === authModal) closeAuth();
+});
+$('auth-form').addEventListener('submit', e => {
+  e.preventDefault();
+  guard(async () => {
+    const email = $('auth-email').value.trim();
+    const password = $('auth-password').value;
+    const name = $('auth-name').value.trim();
+    if (authMode === 'register' && password !== $('auth-confirm').value) {
+      $('auth-error').textContent = 'Passwords do not match.';
+      return;
+    }
+    $('auth-submit').disabled = true;
+    $('auth-error').textContent = '';
+    try {
+      const r = await fetch(backend + '/auth/' + (authMode === 'register' ? 'register' : 'login'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({email, password, name})
+      });
+      const result = await r.json();
+      if (!r.ok || !result.ok) throw new Error(result.e || 'Authentication failed');
+      sessionToken = result.token;
+      localStorage.setItem('kirameki_token', sessionToken);
+      me = result.user;
+      closeAuth();
+      paintAuth();
+      toast(authMode === 'register' ? 'Account created' : 'Signed in');
+    } catch (err) {
+      $('auth-error').textContent = err.message || 'Authentication failed. Please try again.';
+    } finally {
+      $('auth-submit').disabled = false;
+    }
+  });
+});
 $('btn-signout').addEventListener('click',()=>{sessionToken='';localStorage.removeItem('kirameki_token');me=null;paintAuth();toast('Signed out');});
 loadSession();
 

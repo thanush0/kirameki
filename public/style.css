@@ -122,3 +122,44 @@ tr:hover td { background: rgba(255,255,255,.04); }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   #petals { display: none; }
 }
+
+
+/* Email/password authentication modal */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(8, 6, 18, .78);
+  backdrop-filter: blur(10px);
+}
+.auth-overlay.hidden { display: none !important; }
+.auth-dialog {
+  position: relative; width: 100%; max-width: 420px;
+  padding: 32px; border: 1px solid rgba(190,160,255,.24);
+  border-radius: 22px; background: #171323; color: #f8f5ff;
+  box-shadow: 0 24px 90px rgba(0,0,0,.5);
+}
+.auth-dialog h2 { margin: 12px 0 6px; font-size: 26px; }
+.auth-dialog .muted { margin: 0 0 22px; }
+.auth-dialog label { display: block; margin: 14px 0; font-size: 14px; }
+.auth-dialog input {
+  display: block; box-sizing: border-box; width: 100%;
+  margin-top: 7px; padding: 12px 13px;
+  border: 1px solid #49405f; border-radius: 10px;
+  background: #0f0c18; color: #fff; font: inherit;
+}
+.auth-dialog input:focus { outline: 2px solid #a88bff; outline-offset: 1px; }
+.auth-mark { font-size: 28px; color: #c2a5ff; }
+.auth-close {
+  position: absolute; top: 12px; right: 14px;
+  border: 0; background: transparent; color: #eee;
+  font-size: 28px; cursor: pointer;
+}
+.auth-submit { width: 100%; margin-top: 8px; }
+.auth-switch {
+  display: block; width: 100%; margin-top: 18px; padding: 8px;
+  border: 0; background: transparent; color: #c6adff;
+  cursor: pointer; font: inherit;
+}
+.auth-error { color: #ff9aab; font-size: 13px; min-height: 18px; }
+.auth-note { margin: 16px 0 0; text-align: center; color: #aaa1bd; font-size: 12px; }
+@media (max-width: 480px) { .auth-dialog { padding: 24px 20px; } }
