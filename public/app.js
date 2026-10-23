@@ -304,11 +304,14 @@ function itemCard(it) {
     h('button', { class: 'btn ghost small', onclick: () => viewStats(it) }, 'Stats'),
     h('button', { class: 'btn ghost small', onclick: () => guard(async () => { await api('link.update', { code: it.code, active: !it.active }); loadDash(); }) }, it.active ? 'Pause' : 'Resume'),
     h('button', { class: 'btn danger small', onclick: () => confirm('Delete this permanently?') && guard(async () => { await api('link.delete', { code: it.code }); loadDash(); }) }, 'Delete'));
+  const qrExpired = it.type === 'qr' && (it.expired || (it.expiresAt && it.expiresAt <= Date.now()));
+  const status = it.type === 'qr' && it.deleted ? 'deleted · scans promote Kirameki' : qrExpired ? 'expired · scans promote Kirameki' : !it.active ? 'paused · scans promote Kirameki' : '';
   return h('div', { class: 'card item' },
     h('div', {},
-      h('h3', {}, h('span', { class: 'tag ' + it.type }, it.type === 'qr' ? 'dynamic qr' : 'link'), !it.active ? h('span', { class: 'tag off' }, 'paused') : null, it.label || it.shortUrl),
+      h('h3', {}, h('span', { class: 'tag ' + it.type }, it.type === 'qr' ? 'dynamic qr' : 'link'), status ? h('span', { class: 'tag off' }, status) : !it.active ? h('span', { class: 'tag off' }, 'paused') : null, it.label || it.shortUrl),
       h('div', { class: 'dest' }, it.shortUrl, ' → ', it.url || '(unreadable)'),
-      h('div', { class: 'dest' }, it.clicks, ' clicks · created ', fmt(it.createdAt))),
+      h('div', { class: 'dest' }, it.clicks, ' clicks · created ', fmt(it.createdAt)),
+      it.type === 'qr' && it.expiresAt ? h('div', { class: 'dest' }, 'Expires ', fmt(it.expiresAt)) : null),
     acts);
 }
 function viewQr(it) {

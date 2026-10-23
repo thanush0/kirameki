@@ -99,6 +99,7 @@ app.get('/auth/google/callback', async (req, res) => {
 app.post(['/auth/register', '/auth/login'], (_req, res) =>
   res.status(410).json({ ok: false, error: 'Use Google Sign-In' })
 ); app.post('/auth/logout',(_req,res)=>res.json({ok:true}));
+app.get('/promote', (_req,res) => res.sendFile(path.join(__dirname,'public','promote.html')));
 app.post('/g',api.gateway);
 app.all(['/s/:code','/q/:code'],api.redirect);
 app.use(express.static(path.join(__dirname,'public'),{etag:true,maxAge:'1h',index:'index.html',dotfiles:'deny'}));
