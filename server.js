@@ -1,0 +1,16 @@
+'use strict';
+const express = require('express');
+const path = require('node:path');
+const api = require('./sqlite-backend');
+const app = express();
+app.disable('x-powered-by'); app.set('trust proxy', 1);
+app.use((req,res,next)=>{res.set({'X-Content-Type-Options':'nosniff','Referrer-Policy':'strict-origin-when-cross-origin','X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=(), payment=(), usb=()','Cache-Control':'no-store','Content-Security-Policy':"default-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"}); next();});
+app.use(express.json({limit:'16kb'}));
+app.get('/healthz',(_req,res)=>res.json({ok:true,service:'kirameki',database:'sqlite',firebase:false}));
+app.post('/auth/register',api.register); app.post('/auth/login',api.login); app.post('/auth/logout',(_req,res)=>res.json({ok:true}));
+app.post('/g',api.gateway);
+app.all(['/s/:code','/q/:code'],api.redirect);
+app.use(express.static(path.join(__dirname,'public'),{etag:true,maxAge:'1h',index:'index.html',dotfiles:'deny'}));
+app.get('*',(req,res)=>{if(req.path.startsWith('/g')||req.path.startsWith('/s/')||req.path.startsWith('/q/')||req.path.startsWith('/auth/'))return res.status(404).type('text/plain').send('Not found');res.sendFile(path.join(__dirname,'public','index.html'));});
+app.use((err,_req,res,_next)=>{console.error(err);res.status(500).json({ok:false,e:'Internal server error'});});
+const port=Number(process.env.PORT||10000); app.listen(port,'0.0.0.0',()=>console.log(`Kirameki listening on ${port}; SQLite file: ${process.env.SQLITE_PATH||'/tmp/kirameki.sqlite'}`));

@@ -1,0 +1,27 @@
+# Render Blueprint: one free web service serves the frontend and backend.
+services:
+  - type: web
+    name: kirameki
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.x
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_SECRET
+        generateValue: true
+      - key: IP_HASH_SALT
+        generateValue: true
+      - key: BASE_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: ALLOW_REGISTRATION
+        value: "true"
+      - key: SQLITE_PATH
+        value: /tmp/kirameki.sqlite

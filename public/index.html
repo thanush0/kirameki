@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kirameki · Short links &amp; QR</title>
+  <meta name="description" content="Shorten links and create static or dynamic QR codes.">
+  <meta name="robots" content="index,follow">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+  <div id="petals" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand" href="/">
+      <span class="logo">✦</span><span>Kirameki</span>
+    </a>
+    <nav id="tabs" class="tabs" role="tablist">
+      <button class="tab active" data-tab="shorten" role="tab">Shorten</button>
+      <button class="tab" data-tab="qr" role="tab">QR Studio</button>
+      <button class="tab hidden" data-tab="dash" id="tab-dash" role="tab">My Library</button>
+      <button class="tab hidden" data-tab="admin" id="tab-admin" role="tab">Admin</button>
+    </nav>
+    <div class="auth">
+      <button id="btn-signin" class="btn glow">Sign in / Create account</button>
+      <div id="user-box" class="user hidden">
+        <img id="user-pic" alt="" width="32" height="32" referrerpolicy="no-referrer">
+        <span id="user-name"></span>
+        <span id="badge-admin" class="pill hidden">admin</span>
+        <button id="btn-signout" class="btn ghost small">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-shorten" class="view active">
+      <div class="hero">
+        <h1>Long link in. <em>Tiny</em> link out.</h1>
+        <p>Paste any URL. Sign in to unlock custom aliases, editable destinations and click stats.</p>
+      </div>
+      <form id="form-shorten" class="card row" autocomplete="off">
+        <input id="in-url" type="text" inputmode="url" maxlength="2048" placeholder="https://very-long-link.example.com/path?with=params" required>
+        <input id="in-alias" type="text" maxlength="32" placeholder="custom alias (sign in)" pattern="[A-Za-z0-9_\-]{3,32}">
+        <button class="btn glow" type="submit">Shorten ✦</button>
+      </form>
+      <div id="out-shorten" class="card result hidden">
+        <div class="result-main">
+          <a id="out-short-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+          <button id="btn-copy" class="btn ghost small" type="button">Copy</button>
+        </div>
+        <img id="out-short-qr" class="qr-mini" alt="QR code for the short link" width="132" height="132">
+      </div>
+    </section>
+
+    <section id="view-qr" class="view">
+      <div class="hero">
+        <h1>QR codes that <em>shine</em>.</h1>
+        <p><b>Static</b> encodes your content directly and never changes. <b>Dynamic</b> points to a short link you can edit later and track.</p>
+      </div>
+      <div class="qr-grid">
+        <form id="form-qr" class="card col" autocomplete="off">
+          <div class="seg" id="qr-mode">
+            <button type="button" class="seg-btn active" data-mode="static">Static</button>
+            <button type="button" class="seg-btn" data-mode="dynamic">Dynamic <small>(sign in)</small></button>
+          </div>
+          <label>Content / URL
+            <textarea id="qr-text" rows="3" maxlength="1000" placeholder="https://example.com or any text" required></textarea>
+          </label>
+          <label id="qr-label-wrap" class="hidden">Label
+            <input id="qr-label" type="text" maxlength="80" placeholder="Menu poster, flyer #3…">
+          </label>
+          <div class="row tight">
+            <label>Ink <input id="qr-fg" type="color" value="#1a1033"></label>
+            <label>Paper <input id="qr-bg" type="color" value="#ffffff"></label>
+            <label>Error fix
+              <select id="qr-ecc"><option>L</option><option selected>M</option><option>Q</option><option>H</option></select>
+            </label>
+          </div>
+          <button class="btn glow" type="submit">Generate ✦</button>
+          <p id="qr-note" class="muted"></p>
+        </form>
+        <div class="card preview">
+          <div id="qr-empty" class="empty">Your QR appears here</div>
+          <img id="qr-img" class="qr-big hidden" alt="Generated QR code" width="320" height="320">
+          <div id="qr-actions" class="row tight hidden">
+            <button id="qr-dl-svg" class="btn ghost small" type="button">Download SVG</button>
+            <button id="qr-dl-png" class="btn ghost small" type="button">Download PNG</button>
+          </div>
+          <a id="qr-short" class="muted hidden" href="#" target="_blank" rel="noopener noreferrer"></a>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-dash" class="view">
+      <div class="hero small"><h1>My <em>library</em></h1><p>Everything you created while signed in. Edit destinations, pause links, download QR codes.</p></div>
+      <div id="dash-list" class="list"></div>
+    </section>
+
+    <section id="view-admin" class="view">
+      <div class="hero small"><h1>Admin <em>console</em></h1><p>Full visibility across every link, QR, user, click and audit event.</p></div>
+      <div id="admin-stats" class="stats"></div>
+      <div class="seg wide" id="admin-tabs">
+        <button class="seg-btn active" data-a="links">Links &amp; QR</button>
+        <button class="seg-btn" data-a="users">Users</button>
+        <button class="seg-btn" data-a="clicks">Clicks</button>
+        <button class="seg-btn" data-a="logs">Audit log</button>
+      </div>
+      <div id="admin-body" class="card table-wrap"></div>
+    </section>
+  </main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button id="modal-close" class="btn ghost small close" type="button">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
