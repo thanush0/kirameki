@@ -156,6 +156,63 @@ $('btn-copy').addEventListener('click', () => guard(async () => { await navigato
 
 /* ---------- QR studio ---------- */
 let qrMode = 'static', qrSvg = '';
+let activeDynamicQrCode = '';
+let qrRefreshTimer = null;
+
+function stopDynamicQrRefresh() {
+  if (qrRefreshTimer) clearInterval(qrRefreshTimer);
+  qrRefreshTimer = null;
+}
+
+function getQrCode(out) {
+  if (out.code) return String(out.code);
+  try {
+    const path = new URL(out.shortUrl, location.origin).pathname;
+    return path.split('/').filter(Boolean).pop() || '';
+  } catch {
+    return '';
+  }
+}
+
+function startDynamicQrRefresh(code) {
+  stopDynamicQrRefresh();
+  activeDynamicQrCode = code;
+  if (!code) return;
+
+  qrRefreshTimer = setInterval(async () => {
+    if (qrMode !== 'dynamic' ||
+        activeDynamicQrCode !== code ||
+        $('qr-img').classList.contains('hidden')) {
+      return;
+    }
+
+    try {
+      const result = await api('qr.render', { code });
+      // Update only the QR image; do not reload or reset the page.
+      if (qrMode === 'dynamic' && activeDynamicQrCode === code) {
+        showQr(result.svg);
+      }
+    } catch (err) {
+      console.warn('Dynamic QR refresh failed:', err.message);
+    }
+  }, 15000);
+}
+
+function openQrFullscreen(svg) {
+  if (!svg) return;
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const tab = window.open(url, '_blank');
+
+  if (!tab) {
+    URL.revokeObjectURL(url);
+    toast('Allow pop-ups to open the full-screen QR', 'err');
+    return;
+  }
+
+  // Keep the Blob URL alive while the new tab loads.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 function updateQrNote() {
   $('qr-note').textContent = qrMode === 'dynamic'
     ? (me ? 'Dynamic: the QR encodes a short link. Change the destination any time from My Library.' : 'Sign in with Google to create dynamic QR codes.')
@@ -164,6 +221,7 @@ function updateQrNote() {
 $('qr-mode').addEventListener('click', (e) => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
   qrMode = b.dataset.mode;
+  if (qrMode !== 'dynamic') stopDynamicQrRefresh();
   document.querySelectorAll('#qr-mode .seg-btn').forEach((x) => x.classList.toggle('active', x === b));
   $('qr-label-wrap').classList.toggle('hidden', qrMode !== 'dynamic');
   updateQrNote();
@@ -178,10 +236,13 @@ $('form-qr').addEventListener('submit', (e) => {
       out = await api('qr.dynamic.create', { url: $('qr-text').value, label: $('qr-label').value, ...style });
       const s = $('qr-short'); s.href = out.shortUrl; s.textContent = out.shortUrl; s.classList.remove('hidden');
     } else {
+      stopDynamicQrRefresh();
+      activeDynamicQrCode = '';
       out = await api('qr.static', { text: $('qr-text').value, ...style });
       $('qr-short').classList.add('hidden');
     }
     showQr(out.svg);
+    if (qrMode === 'dynamic') startDynamicQrRefresh(getQrCode(out));
     toast(qrMode === 'dynamic' ? 'Dynamic QR saved to your library ✦' : 'QR generated ✦');
   });
 });
@@ -194,15 +255,8 @@ function download(blob, name) {
   const a = h('a', { href: URL.createObjectURL(blob), download: name }); document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-$('qr-dl-svg').addEventListener('click', () => download(new Blob([qrSvg], { type: 'image/svg+xml' }), 'qr.svg'));
-$('qr-dl-png').addEventListener('click', () => {
-  const img = new Image();
-  img.onload = () => {
-    const c = h('canvas', { width: 1024, height: 1024 });
-    const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.drawImage(img, 0, 0, 1024, 1024);
-    c.toBlob((b) => download(b, 'qr.png'));
-  };
-  img.src = svgUri(qrSvg);
+$('qr-fullscreen').addEventListener('click', () => {
+  openQrFullscreen(qrSvg);
 });
 
 /* ---------- modal ---------- */
@@ -237,8 +291,13 @@ function itemCard(it) {
 function viewQr(it) {
   guard(async () => {
     const { svg } = await api('qr.render', { code: it.code });
-    const dl = h('button', { class: 'btn ghost small', onclick: () => download(new Blob([svg], { type: 'image/svg+xml' }), it.code + '.svg') }, 'Download SVG');
-    openModal(h('h2', {}, it.label || 'Dynamic QR'), h('img', { class: 'qr-big', alt: 'QR code', src: svgUri(svg), width: 260, height: 260 }), h('p', { class: 'muted' }, it.shortUrl), dl);
+    const fullscreen = h('button', {
+      class: 'btn ghost small',
+      onclick: () => openQrFullscreen(svg)
+    }, 'Open Full Screen QR');
+    openModal(h('h2', {}, it.label || 'Dynamic QR'),
+      h('img', { class: 'qr-big', alt: 'QR code', src: svgUri(svg), width: 260, height: 260 }),
+      h('p', { class: 'muted' }, it.shortUrl), fullscreen);
   });
 }
 function editItem(it) {
