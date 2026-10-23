@@ -383,3 +383,63 @@ tr:hover td { background: rgba(255,255,255,.04); }
     max-width: 100%;
   }
 }
+
+
+
+/* Final mobile header alignment */
+@media (max-width: 600px) {
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+
+  .top .brand {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  .top .tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px 10px;
+    width: 100%;
+  }
+
+  .top .tab {
+    margin: 0;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  .top .tabs + * {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .top button,
+  .top .btn {
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .hero {
+    padding: 26px 18px 20px;
+  }
+
+  #form-short,
+  #form-qr {
+    width: 100%;
+    min-width: 0;
+  }
+}
