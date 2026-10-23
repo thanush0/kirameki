@@ -163,3 +163,18 @@ tr:hover td { background: rgba(255,255,255,.04); }
 .auth-error { color: #ff9aab; font-size: 13px; min-height: 18px; }
 .auth-note { margin: 16px 0 0; text-align: center; color: #aaa1bd; font-size: 12px; }
 @media (max-width: 480px) { .auth-dialog { padding: 24px 20px; } }
+
+
+/* Google OAuth button */
+.google-signin {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  box-sizing: border-box; width: 100%; margin-top: 16px; padding: 12px 14px;
+  border: 1px solid #dadce0; border-radius: 10px;
+  background: #fff; color: #202124; text-decoration: none;
+  font-weight: 600; font-size: 14px;
+}
+.google-signin:hover { background: #f7f8f8; }
+.google-g {
+  font-family: Arial, sans-serif; font-weight: 700; font-size: 20px;
+  color: #4285f4;
+}

@@ -34,6 +34,48 @@ function owned(ctx,code){if(typeof code!=='string'||!CODE_RE.test(code))throw ba
 function authRequired(ctx,level){if(level!=='none'&&!ctx.user)throw new HttpError(401,'Sign in required');if(level==='admin'&&!ctx.user.isAdmin)throw new HttpError(404,'Not found');}
 async function register(req,res){try{const {email,password,name}=req.body||{};const e=String(email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))throw bad('Enter a valid email');if(typeof password!=='string'||password.length<10||password.length>128)throw bad('Password must be 10–128 characters');if(!process.env.ALLOW_REGISTRATION||process.env.ALLOW_REGISTRATION==='true'){const uid=crypto.randomUUID(),ts=now();const nm=cleanLabel(name)||e.split('@')[0];try{db.prepare('INSERT INTO users(uid,email,password_hash,name,created_at,last_login) VALUES(?,?,?,?,?,?)').run(uid,e,bcrypt.hashSync(password,12),nm,ts,ts)}catch{throw new HttpError(409,'An account with this email already exists');}const user={uid,email:e,name:nm,picture:'',isAdmin:admins().includes(e)};audit({user,ipHash:hmac(ip(req))},'user.signup',uid);return res.status(201).json({ok:true,token:jwt.sign({uid},sessionSecret,{expiresIn:'7d'}),user});}throw new HttpError(403,'Registration is disabled');}catch(e){res.status(e.status||500).json({ok:false,e:e.status?e.message:'Registration failed'});}}
 function login(req,res){try{const email=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');const u=db.prepare('SELECT * FROM users WHERE email=?').get(email);if(!u||u.disabled||!bcrypt.compareSync(password,u.password_hash))throw new HttpError(401,'Invalid email or password');db.prepare('UPDATE users SET last_login=? WHERE uid=?').run(now(),u.uid);const user={uid:u.uid,email:u.email,name:u.name,picture:'',isAdmin:admins().includes(u.email)};audit({user,ipHash:hmac(ip(req))},'user.login',u.uid);res.json({ok:true,token:jwt.sign({uid:u.uid},sessionSecret,{expiresIn:'7d'}),user});}catch(e){res.status(e.status||500).json({ok:false,e:e.status?e.message:'Login failed'});}}
+
+function googleSignIn(req, profile) {
+  const email = String(profile.email || '').trim().toLowerCase();
+  const name = cleanLabel(profile.name) || email.split('@')[0];
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new HttpError(400, 'Google did not provide a valid email');
+  }
+
+  let u = db.prepare('SELECT * FROM users WHERE email=?').get(email);
+  if (u && u.disabled) throw new HttpError(403, 'This account is disabled');
+
+  if (!u) {
+    const uid = crypto.randomUUID();
+    const ts = now();
+    // Random password is never disclosed or used for Google authentication.
+    const unusablePassword = bcrypt.hashSync(crypto.randomBytes(48).toString('base64url'), 12);
+    try {
+      db.prepare('INSERT INTO users(uid,email,password_hash,name,created_at,last_login) VALUES(?,?,?,?,?,?)')
+        .run(uid, email, unusablePassword, name, ts, ts);
+    } catch (e) {
+      if (!String(e.code || '').includes('SQLITE_CONSTRAINT')) throw e;
+    }
+    u = db.prepare('SELECT * FROM users WHERE email=?').get(email);
+  } else {
+    db.prepare('UPDATE users SET last_login=? WHERE uid=?').run(now(), u.uid);
+  }
+
+  if (!u || u.disabled) throw new HttpError(403, 'This account is unavailable');
+  const user = {
+    uid: u.uid,
+    email: u.email,
+    name: u.name || name,
+    picture: '',
+    isAdmin: admins().includes(u.email.toLowerCase())
+  };
+  audit({ user, ipHash: hmac(ip(req)) }, 'user.google_login', u.uid);
+  return {
+    token: jwt.sign({ uid: u.uid }, sessionSecret, { expiresIn: '7d' }),
+    user
+  };
+}
+
 async function gateway(req,res){res.set({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});try{if(req.method!=='POST'||!req.is('application/json'))return res.status(404).type('text/plain').send('Not found');if(JSON.stringify(req.body||{}).length>8192)throw new HttpError(413,'Request too large');const {a,d={}}=req.body||{};const ctx={user:tokenUser(req),ipHash:hmac(ip(req))};const specs={
 'me':['user',async()=>{const u=ctx.user;db.prepare('UPDATE users SET last_login=? WHERE uid=?').run(now(),u.uid);return{...u};}],
 'shorten':['none',async()=>{let alias=d.alias?validAlias(String(d.alias)):null;if(alias&&!ctx.user)throw new HttpError(401,'Sign in to use a custom alias');return createLink(ctx,{url:d.url,alias,type:'link',label:cleanLabel(d.label)});}],
@@ -52,4 +94,4 @@ async function gateway(req,res){res.set({'Cache-Control':'no-store','X-Content-T
 'admin.setUserDisabled':['admin',async()=>{if(!d.uid||d.uid===ctx.user.uid)throw bad('Invalid user');db.prepare('UPDATE users SET disabled=? WHERE uid=?').run(d.disabled?1:0,d.uid);audit(ctx,'admin.user.disable',d.uid,{disabled:!!d.disabled});return{uid:d.uid,disabled:!!d.disabled};}]
 };const spec=specs[a];if(!spec)return res.status(404).type('text/plain').send('Not found');authRequired(ctx,spec[0]);const limits={'shorten':15,'qr.static':30,'qr.dynamic.create':10};rateLimit(a,ctx,limits[a]||60,60);const out=await spec[1]();res.json({ok:true,d:out});}catch(e){if(e instanceof HttpError)return res.status(e.status).json({ok:false,e:e.message});console.error('API error',e);res.status(500).json({ok:false,e:'Server error'});}}
 async function redirect(req,res){res.set({'Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Robots-Tag':'noindex'});try{if(!['GET','HEAD'].includes(req.method))return res.status(405).end();const code=req.params.code;if(!CODE_RE.test(code))return res.status(404).send('Link not found');const r=db.prepare('SELECT * FROM links WHERE code=? AND active=1').get(code);if(!r)return res.status(404).send('Link not found');const url=decrypt(r.dest_enc,code);if(!/^https?:\/\//i.test(url))return res.status(404).send('Link not found');if(req.method==='GET'){let ref=null;try{ref=req.get('referer')?new URL(req.get('referer')).hostname.slice(0,100):null}catch{};db.prepare('UPDATE links SET clicks=clicks+1 WHERE code=?').run(code);db.prepare('INSERT INTO clicks(code,ts,ip_hash,ua,ref,country) VALUES(?,?,?,?,?,?)').run(code,now(),hmac(ip(req)),String(req.get('user-agent')||'').slice(0,160),ref,req.get('cf-ipcountry')||null);}res.redirect(302,url);}catch(e){console.error('redirect error',e.message);res.status(500).send('Error');}}
-module.exports={register,login,gateway,redirect};
+module.exports={register,login,googleSignIn,gateway,redirect};

@@ -1,5 +1,13 @@
 import { backendBaseUrl } from './config.js';
 let sessionToken = localStorage.getItem('kirameki_token') || '';
+const oauthFragment = new URLSearchParams(location.hash.slice(1));
+const googleToken = oauthFragment.get('google_token');
+if (googleToken) {
+  sessionToken = googleToken;
+  localStorage.setItem('kirameki_token', googleToken);
+  history.replaceState(null, '', location.pathname + location.search);
+}
+
 const backend = (backendBaseUrl || '').replace(/\/+$/, '');
 const $ = (id) => document.getElementById(id);
 let me = null; // { uid, email, name, picture, isAdmin }
@@ -142,7 +150,9 @@ $('auth-form').addEventListener('submit', e => {
   });
 });
 $('btn-signout').addEventListener('click',()=>{sessionToken='';localStorage.removeItem('kirameki_token');me=null;paintAuth();toast('Signed out');});
-loadSession();
+loadSession().then(() => {
+  if (googleToken) toast('Signed in with Google');
+});
 
 /* ---------- shorten ---------- */
 let lastShort = '';
