@@ -157,14 +157,6 @@ $('btn-copy').addEventListener('click', () => guard(async () => { await navigato
 
 /* ---------- QR studio ---------- */
 let qrMode = 'static', qrSvg = '';
-let activeDynamicQrCode = '';
-let qrRefreshTimer = null;
-
-function stopDynamicQrRefresh() {
-  if (qrRefreshTimer) clearInterval(qrRefreshTimer);
-  qrRefreshTimer = null;
-}
-
 function getQrCode(out) {
   if (out.code) return String(out.code);
   try {
@@ -194,30 +186,6 @@ function readDynamicQrSession() {
   }
 }
 
-function startDynamicQrRefresh(code) {
-  stopDynamicQrRefresh();
-  activeDynamicQrCode = code;
-  if (!code) return;
-
-  qrRefreshTimer = setInterval(async () => {
-    if (qrMode !== 'dynamic' ||
-        activeDynamicQrCode !== code ||
-        $('qr-img').classList.contains('hidden')) {
-      return;
-    }
-
-    try {
-      const result = await api('qr.render', { code });
-      // Update only the QR image; do not reload or reset the page.
-      if (qrMode === 'dynamic' && activeDynamicQrCode === code) {
-        showQr(result.svg);
-      }
-    } catch (err) {
-      console.warn('Dynamic QR refresh failed:', err.message);
-    }
-  }, 15000);
-}
-
 function openQrFullscreen(svg) {
   if (!svg) return;
   const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -241,7 +209,6 @@ function updateQrNote() {
 $('qr-mode').addEventListener('click', (e) => {
   const b = e.target.closest('.seg-btn'); if (!b) return;
   qrMode = b.dataset.mode;
-  if (qrMode !== 'dynamic') stopDynamicQrRefresh();
   document.querySelectorAll('#qr-mode .seg-btn').forEach((x) => x.classList.toggle('active', x === b));
   $('qr-label-wrap').classList.toggle('hidden', qrMode !== 'dynamic');
   updateQrNote();
@@ -256,8 +223,6 @@ $('form-qr').addEventListener('submit', (e) => {
       out = await api('qr.dynamic.create', { url: $('qr-text').value, label: $('qr-label').value, ...style });
       const s = $('qr-short'); s.href = out.shortUrl; s.textContent = out.shortUrl; s.classList.remove('hidden');
     } else {
-      stopDynamicQrRefresh();
-      activeDynamicQrCode = '';
       out = await api('qr.static', { text: $('qr-text').value, ...style });
       $('qr-short').classList.add('hidden');
     }
@@ -271,7 +236,6 @@ $('form-qr').addEventListener('submit', (e) => {
         label: $('qr-label').value || '',
         savedAt: Date.now()
       });
-      startDynamicQrRefresh(code);
     }
     toast(qrMode === 'dynamic' ? 'Dynamic QR saved to your library ✦' : 'QR generated ✦');
   });
@@ -313,7 +277,6 @@ async function restoreDynamicQrSession() {
 
     const result = await api('qr.render', { code: saved.code });
     showQr(result.svg);
-    startDynamicQrRefresh(saved.code);
   } catch (err) {
     console.warn('Could not restore dynamic QR:', err.message);
   }
@@ -367,10 +330,64 @@ function editItem(it) {
     h('label', {}, 'Destination URL', url), h('p'), h('label', {}, 'Label', label), h('p'),
     h('button', { class: 'btn glow', onclick: () => guard(async () => { await api('link.update', { code: it.code, url: url.value, label: label.value }); modal.classList.add('hidden'); toast('Updated ✦'); loadDash(); }) }, 'Save'));
 }
+
+function describeVisitorAgent(ua = '') {
+  const value = ua.toLowerCase();
+
+  let device = 'Unknown device';
+  if (/ipad|tablet/.test(value)) device = 'Tablet';
+  else if (/mobile|android|iphone|ipod/.test(value)) device = 'Mobile';
+  else if (/windows|macintosh|linux|x11/.test(value)) device = 'Desktop';
+
+  let browser = 'Unknown browser';
+  if (/edg\//.test(value)) browser = 'Edge';
+  else if (/opr\/|opera/.test(value)) browser = 'Opera';
+  else if (/firefox\//.test(value)) browser = 'Firefox';
+  else if (/chrome\//.test(value) && !/edg\//.test(value)) browser = 'Chrome';
+  else if (/safari\//.test(value) && !/chrome\//.test(value)) browser = 'Safari';
+
+  return `${device} · ${browser}`;
+}
+
 function viewStats(it) {
   guard(async () => {
     const { clicks } = await api('link.stats', { code: it.code });
-    openModal(h('h2', {}, 'Recent clicks · ', it.clicks, ' total'), table(['When', 'Country', 'Referrer', 'Device'], clicks.map((c) => [fmt(c.ts), c.country || '—', c.ref || 'direct', c.ua || '—'])));
+    const recent = clicks || [];
+    const total = Number(it.clicks || 0);
+    const lastVisit = recent.length ? fmt(recent[0].ts) : 'No visits yet';
+
+    const summary = h('div', { class: 'grid stats-grid' },
+      h('div', { class: 'card stat' },
+        h('b', {}, total.toLocaleString()),
+        h('span', {}, it.type === 'qr' ? 'Total QR scans' : 'Total visits')),
+      h('div', { class: 'card stat' },
+        h('b', {}, String(recent.length)),
+        h('span', {}, 'Recent records loaded')),
+      h('div', { class: 'card stat' },
+        h('b', {}, lastVisit),
+        h('span', {}, 'Most recent visit'))
+    );
+
+    const visitTable = table(
+      ['When', 'Country', 'Referrer', 'Device / Browser'],
+      recent.map((c) => [
+        fmt(c.ts),
+        c.country || 'Unavailable',
+        c.ref || 'Direct / unavailable',
+        describeVisitorAgent(c.ua)
+      ])
+    );
+
+    openModal(
+      h('h2', {}, it.type === 'qr' ? 'QR Scan Analytics' : 'Link Visit Analytics'),
+      h('p', { class: 'muted' },
+        'Short link: ', it.shortUrl),
+      summary,
+      h('h3', {}, 'Recent visits'),
+      visitTable,
+      h('p', { class: 'muted' },
+        'Analytics are based on redirect requests. Country and referrer may be unavailable. Device and browser are approximate user-agent classifications. These records do not reveal a visitor’s real name or email.')
+    );
   });
 }
 
