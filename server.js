@@ -96,7 +96,9 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
-app.post('/auth/register',api.register); app.post('/auth/login',api.login); app.post('/auth/logout',(_req,res)=>res.json({ok:true}));
+app.post(['/auth/register', '/auth/login'], (_req, res) =>
+  res.status(410).json({ ok: false, error: 'Use Google Sign-In' })
+); app.post('/auth/logout',(_req,res)=>res.json({ok:true}));
 app.post('/g',api.gateway);
 app.all(['/s/:code','/q/:code'],api.redirect);
 app.use(express.static(path.join(__dirname,'public'),{etag:true,maxAge:'1h',index:'index.html',dotfiles:'deny'}));

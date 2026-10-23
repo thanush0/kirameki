@@ -1,13 +1,5 @@
 import { backendBaseUrl } from './config.js';
 let sessionToken = localStorage.getItem('kirameki_token') || '';
-const oauthFragment = new URLSearchParams(location.hash.slice(1));
-const googleToken = oauthFragment.get('google_token');
-if (googleToken) {
-  sessionToken = googleToken;
-  localStorage.setItem('kirameki_token', googleToken);
-  history.replaceState(null, '', location.pathname + location.search);
-}
-
 const backend = (backendBaseUrl || '').replace(/\/+$/, '');
 const $ = (id) => document.getElementById(id);
 let me = null; // { uid, email, name, picture, isAdmin }
@@ -69,89 +61,82 @@ function showTab(name) {
 }
 $('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) showTab(b.dataset.tab); });
 
-/* ---------- local email/password auth; no Firebase SDK ---------- */
+/* ---------- Google OAuth authentication ---------- */
 function paintAuth() {
-  $('btn-signin').classList.toggle('hidden', !!me); $('user-box').classList.toggle('hidden', !me);
-  $('tab-dash').classList.toggle('hidden', !me); $('tab-admin').classList.toggle('hidden', !(me && me.isAdmin)); $('badge-admin').classList.toggle('hidden', !(me && me.isAdmin));
-  if (me) { $('user-name').textContent=me.name||me.email; $('user-pic').classList.add('hidden'); }
-  else { const active=document.querySelector('.tab.active'); if(active&&(active.dataset.tab==='dash'||active.dataset.tab==='admin'))showTab('shorten'); }
+  $('btn-signin').classList.toggle('hidden', !!me);
+  $('user-box').classList.toggle('hidden', !me);
+  $('tab-dash').classList.toggle('hidden', !me);
+  $('tab-admin').classList.toggle('hidden', !(me && me.isAdmin));
+  $('badge-admin').classList.toggle('hidden', !(me && me.isAdmin));
+
+  if (me) {
+    $('user-name').textContent = me.name || me.email;
+    $('user-pic').classList.add('hidden');
+  } else {
+    const active = document.querySelector('.tab.active');
+    if (active && (active.dataset.tab === 'dash' ||
+                   active.dataset.tab === 'admin')) {
+      showTab('shorten');
+    }
+  }
   updateQrNote();
 }
-async function loadSession(){ if(!sessionToken){paintAuth();return;} try{me=await api('me');}catch{sessionToken='';localStorage.removeItem('kirameki_token');me=null;} paintAuth(); }
-const authModal = $('auth-modal');
-let authMode = 'login';
 
-function setAuthMode(mode) {
-  authMode = mode;
-  $('auth-title').textContent = mode === 'register' ? 'Create your account' : 'Welcome back';
-  $('auth-submit').textContent = mode === 'register' ? 'Create account' : 'Sign in';
-  $('auth-switch').textContent = mode === 'register'
-    ? 'Already have an account? Sign in'
-    : 'New to Kirameki? Create account';
-  $('auth-name-wrap').classList.toggle('hidden', mode !== 'register');
-  $('auth-confirm-wrap').classList.toggle('hidden', mode !== 'register');
-  $('auth-confirm').required = mode === 'register';
-  $('auth-name').required = false;
-  $('auth-error').textContent = '';
-  $('auth-password').autocomplete = mode === 'register' ? 'new-password' : 'current-password';
+async function loadSession() {
+  if (!sessionToken) {
+    me = null;
+    paintAuth();
+    return;
+  }
+
+  try {
+    me = await api('me');
+  } catch {
+    sessionToken = '';
+    localStorage.removeItem('kirameki_token');
+    me = null;
+  }
+
+  paintAuth();
 }
 
+const authModal = $('auth-modal');
+
 function openAuth() {
-  setAuthMode('login');
   authModal.classList.remove('hidden');
-  $('auth-email').focus();
 }
 
 function closeAuth() {
   authModal.classList.add('hidden');
-  $('auth-form').reset();
-  $('auth-error').textContent = '';
 }
 
 $('btn-signin').addEventListener('click', openAuth);
 $('auth-close').addEventListener('click', closeAuth);
-$('auth-switch').addEventListener('click', () => {
-  setAuthMode(authMode === 'login' ? 'register' : 'login');
-});
-authModal.addEventListener('click', e => {
+
+authModal.addEventListener('click', (e) => {
   if (e.target === authModal) closeAuth();
 });
-$('auth-form').addEventListener('submit', e => {
-  e.preventDefault();
-  guard(async () => {
-    const email = $('auth-email').value.trim();
-    const password = $('auth-password').value;
-    const name = $('auth-name').value.trim();
-    if (authMode === 'register' && password !== $('auth-confirm').value) {
-      $('auth-error').textContent = 'Passwords do not match.';
-      return;
-    }
-    $('auth-submit').disabled = true;
-    $('auth-error').textContent = '';
-    try {
-      const r = await fetch(backend + '/auth/' + (authMode === 'register' ? 'register' : 'login'), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({email, password, name})
-      });
-      const result = await r.json();
-      if (!r.ok || !result.ok) throw new Error(result.e || 'Authentication failed');
-      sessionToken = result.token;
-      localStorage.setItem('kirameki_token', sessionToken);
-      me = result.user;
-      closeAuth();
-      paintAuth();
-      toast(authMode === 'register' ? 'Account created' : 'Signed in');
-    } catch (err) {
-      $('auth-error').textContent = err.message || 'Authentication failed. Please try again.';
-    } finally {
-      $('auth-submit').disabled = false;
-    }
-  });
+
+$('btn-signout').addEventListener('click', () => {
+  sessionToken = '';
+  localStorage.removeItem('kirameki_token');
+  me = null;
+  paintAuth();
+  toast('Signed out');
 });
-$('btn-signout').addEventListener('click',()=>{sessionToken='';localStorage.removeItem('kirameki_token');me=null;paintAuth();toast('Signed out');});
+
+/* Google OAuth returns the session token in the URL fragment. */
+const googleParams = new URLSearchParams(location.hash.slice(1));
+const googleToken = googleParams.get('google_token');
+
+if (googleToken) {
+  sessionToken = googleToken;
+  localStorage.setItem('kirameki_token', sessionToken);
+  history.replaceState(null, '', location.pathname + location.search);
+}
+
 loadSession().then(() => {
-  if (googleToken) toast('Signed in with Google');
+  if (googleToken && me) toast('Signed in with Google');
 });
 
 /* ---------- shorten ---------- */
@@ -173,7 +158,7 @@ $('btn-copy').addEventListener('click', () => guard(async () => { await navigato
 let qrMode = 'static', qrSvg = '';
 function updateQrNote() {
   $('qr-note').textContent = qrMode === 'dynamic'
-    ? (me ? 'Dynamic: the QR encodes a short link. Change the destination any time from My Library.' : 'Create an account to create dynamic QR codes.')
+    ? (me ? 'Dynamic: the QR encodes a short link. Change the destination any time from My Library.' : 'Sign in with Google to create dynamic QR codes.')
     : 'Static: content is baked into the QR. No account needed, no tracking.';
 }
 $('qr-mode').addEventListener('click', (e) => {
@@ -189,7 +174,7 @@ $('form-qr').addEventListener('submit', (e) => {
     const style = { fg: $('qr-fg').value, bg: $('qr-bg').value, ecc: $('qr-ecc').value };
     let out;
     if (qrMode === 'dynamic') {
-      if (!me) { toast('Sign in with your email and password first', 'err'); return; }
+      if (!me) { toast('Sign in with Google first', 'err'); return; }
       out = await api('qr.dynamic.create', { url: $('qr-text').value, label: $('qr-label').value, ...style });
       const s = $('qr-short'); s.href = out.shortUrl; s.textContent = out.shortUrl; s.classList.remove('hidden');
     } else {
