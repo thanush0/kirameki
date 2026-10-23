@@ -109,7 +109,7 @@ $('form-qr').addEventListener('submit', (e) => {
     const style = { fg: $('qr-fg').value, bg: $('qr-bg').value, ecc: $('qr-ecc').value };
     let out;
     if (qrMode === 'dynamic') {
-      if (!me) { toast('Sign in with Google first', 'err'); return; }
+      if (!me) { toast('Sign in with your email and password first', 'err'); return; }
       out = await api('qr.dynamic.create', { url: $('qr-text').value, label: $('qr-label').value, ...style });
       const s = $('qr-short'); s.href = out.shortUrl; s.textContent = out.shortUrl; s.classList.remove('hidden');
     } else {
