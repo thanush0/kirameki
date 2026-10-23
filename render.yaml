@@ -1,0 +1,28 @@
+# Render Blueprint: deploy the frontend and backend together on one free web service.
+# In Render, choose New -> Blueprint and select the Git repository containing this file.
+services:
+  - type: web
+    name: kirameki
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: FIREBASE_PROJECT_ID
+        value: kirameki-dbc34
+      - key: FRONTEND_ORIGIN
+        value: https://kirameki-dbc34.web.app
+      - key: BASE_URL
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: IP_HASH_SALT
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
